@@ -1,0 +1,64 @@
+import { createClient } from "redis";
+import config from "../config";
+
+class RedisService {
+  private static instance: RedisService;
+  private pubClient: ReturnType<typeof createClient>;
+  private subClient: ReturnType<typeof createClient>;
+  private isInitialized = false;
+
+  private constructor() {
+    this.pubClient = createClient({ url: config.redis.url });
+    this.subClient = this.pubClient.duplicate();
+
+    this.pubClient.on("error", (err) => console.error("Redis pub error:", err));
+    this.subClient.on("error", (err) => console.error("Redis sub error:", err));
+  }
+
+  public static getInstance(): RedisService {
+    if (!RedisService.instance) {
+      RedisService.instance = new RedisService();
+    }
+    return RedisService.instance;
+  }
+
+  public async init(): Promise<void> {
+    if (!this.isInitialized) {
+      await Promise.all([this.pubClient.connect(), this.subClient.connect()]);
+      this.isInitialized = true;
+      console.log("Redis service initialized");
+    }
+  }
+
+  public getPubClient() {
+    return this.pubClient;
+  }
+
+  public getSubClient() {
+    return this.subClient;
+  }
+
+  public async get<T>(key: string): Promise<T | null> {
+    const data = await this.pubClient.get(`${config.redis.prefix}${key}`);
+    return data ? (JSON.parse(data) as T) : null;
+  }
+
+  public async set<T>(key: string, value: T): Promise<void> {
+    await this.pubClient.set(
+      `${config.redis.prefix}${key}`,
+      JSON.stringify(value)
+    );
+  }
+
+  public async del(key: string): Promise<void> {
+    await this.pubClient.del(`${config.redis.prefix}${key}`);
+  }
+
+  public async close(): Promise<void> {
+    await this.pubClient.quit();
+    await this.subClient.quit();
+    this.isInitialized = false;
+  }
+}
+
+export default RedisService;
