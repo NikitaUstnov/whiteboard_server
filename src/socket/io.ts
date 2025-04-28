@@ -8,7 +8,10 @@ import {
   handleCursorPosition,
   handleCursorLeave,
 } from "./handlers/cursor.handler";
-import { handleExcalidrawUpdate } from "./handlers/drawing.handler";
+import {
+  handleExcalidrawUpdate,
+  roomFilesUpdate,
+} from "./handlers/drawing.handler";
 import {
   handleClientReady,
   handleEndSession,
@@ -22,6 +25,7 @@ import {
   TypedServer,
   TypedSocket,
 } from "./types/types";
+import { TFile } from "../models/room.types";
 
 class SocketServer {
   private io: TypedServer;
@@ -72,6 +76,10 @@ class SocketServer {
       // drawing handlers
       socket.on("excalidraw-update", (data: ExcalidrawUpdateEvent) =>
         handleExcalidrawUpdate(socket, data)
+      );
+
+      socket.on("room-files-update", (data: TFile) =>
+        roomFilesUpdate(socket, data)
       );
 
       // room handlers

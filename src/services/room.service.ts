@@ -1,4 +1,4 @@
-import { RoomData, Rooms, AppState } from "../models/room.types";
+import { RoomData, Rooms, AppState, TFile } from "../models/room.types";
 import { User } from "../models/user.types";
 import { CursorData } from "../models/cursor.types";
 import RedisService from "./redis.service";
@@ -69,6 +69,7 @@ class RoomService {
       },
       cursors: {},
       lastUpdate: Date.now(),
+      files: {},
     };
 
     // Save the room to Redis and local cache
@@ -152,6 +153,26 @@ class RoomService {
     }
 
     await this.saveRoom(roomId, room);
+    return true;
+  }
+
+  public async updateFiles(roomId: string, file: TFile): Promise<boolean> {
+    const room = await this.getRoom(roomId);
+    if (!room) return false;
+
+    const fileKey = Object.keys(file)[0];
+
+    if (!room.files) {
+      room.files = {};
+    }
+
+    if (fileKey in room.files) {
+      delete room.files[fileKey];
+    }
+
+    Object.assign(room.files, file);
+    await this.saveRoom(roomId, room);
+
     return true;
   }
 

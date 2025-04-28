@@ -9,7 +9,6 @@ export const handleClientReady = async (socket: TypedSocket): Promise<void> => {
   const room = await roomService.getRoom(roomId);
 
   if (room) {
-    // Отправляем текущее состояние сцены
     socket.emit("initial-scene", {
       roomId,
       elements: room.elements,
@@ -48,25 +47,21 @@ export const handleDisconnect = async (
 
   const roomService = RoomService.getInstance();
 
-  // Удаляем пользователя из комнаты
   const isEmpty = await roomService.removeUser(roomId, socket.id);
 
   const room = await roomService.getRoom(roomId);
   if (room) {
-    // Уведомляем оставшихся пользователей
     socket.to(roomId).emit("users-update", {
       roomId,
       users: room.users.length,
     });
 
-    // Уведомляем об удалении курсора
     socket.to(roomId).emit("cursor-leave", {
       roomId,
       userId: socket.id,
     });
   }
 
-  // Если комната пуста, планируем ее удаление
   if (isEmpty) {
     roomService.scheduleRoomDeletion(roomId);
   }

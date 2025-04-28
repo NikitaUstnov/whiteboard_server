@@ -23,7 +23,7 @@ export default {
   },
 
   room: {
-    cleanupTimeout: 60000, // 1 minute timeout to remove empty room
+    cleanupTimeout: 10000, //  timeout to remove empty room
     updateThrottleMs: 50, // minimum interval between room updates
   },
 };
