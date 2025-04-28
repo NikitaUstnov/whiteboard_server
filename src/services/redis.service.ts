@@ -8,7 +8,10 @@ class RedisService {
   private isInitialized = false;
 
   private constructor() {
-    this.pubClient = createClient({ url: config.redis.url });
+    this.pubClient = createClient({
+      url: config.redis.url,
+      socket: { reconnectStrategy: (attempts) => 1000 },
+    });
     this.subClient = this.pubClient.duplicate();
 
     this.pubClient.on("error", (err) => console.error("Redis pub error:", err));
