@@ -3,10 +3,4 @@ import WhiteboardApp from "./app";
 
 const app = new WhiteboardApp();
 
-app.start();
-
-// app.init().then(() => {
-//   clusterize(async () => {
-//     await app.start();
-//   });
-// });
+clusterize(app.start.bind(app));

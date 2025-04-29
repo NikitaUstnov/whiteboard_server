@@ -1,0 +1,105 @@
+import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import http from "http";
+import RedisService from "../services/redis.service";
+import config from "../config";
+import { handleConnection } from "./handlers/connection.handler";
+import {
+  handleCursorPosition,
+  handleCursorLeave,
+} from "./handlers/cursor.handler";
+import {
+  handleExcalidrawUpdate,
+  roomFilesUpdate,
+} from "./handlers/drawing.handler";
+import {
+  handleClientReady,
+  handleEndSession,
+  handleDisconnect,
+} from "./handlers/room.handler";
+import {
+  CursorLeaveEvent,
+  CursorPositionEvent,
+  EndSessionEvent,
+  ExcalidrawUpdateEvent,
+  TypedServer,
+  TypedSocket,
+} from "./types/types";
+import { TFile } from "../models/room.types";
+
+class SocketServer {
+  private io: TypedServer;
+  private redisService: RedisService;
+
+  constructor(httpServer: http.Server) {
+    this.redisService = RedisService.getInstance();
+    this.io = new Server(httpServer, {
+      cors: config.socketIO.cors,
+      pingTimeout: config.socketIO.pingTimeout,
+      pingInterval: config.socketIO.pingInterval,
+      maxHttpBufferSize: config.socketIO.maxHttpBufferSize,
+    });
+
+    this.setupAdapters();
+    this.setupErrorHandling();
+    this.setupEventHandlers();
+  }
+
+  private async setupAdapters(): Promise<void> {
+    // get Redis clients for Socket.IO adapter
+    const pubClient = this.redisService.getPubClient();
+    const subClient = this.redisService.getSubClient();
+
+    // setup Redis-adapter for scaling Socket.IO
+    this.io.adapter(createAdapter(pubClient, subClient));
+
+    console.log("Socket.IO adapter initialized");
+  }
+
+  private setupErrorHandling(): void {
+    this.io.engine.on("connection_error", (err: Error) => {
+      console.log("Socket.IO connection error:", err);
+    });
+  }
+
+  private setupEventHandlers(): void {
+    this.io.on("connection", (socket: TypedSocket) => {
+      // main handlers
+      handleConnection(socket);
+
+      // cursor handlers
+      socket.on("cursor-position", (data: CursorPositionEvent) =>
+        handleCursorPosition(socket, data)
+      );
+      socket.on("cursor-leave", (data: CursorLeaveEvent) =>
+        handleCursorLeave(socket, data)
+      );
+
+      // drawing handlers
+      socket.on("excalidraw-update", (data: ExcalidrawUpdateEvent) =>
+        handleExcalidrawUpdate(socket, data)
+      );
+
+      socket.on("room-files-update", (data: TFile) =>
+        roomFilesUpdate(socket, data)
+      );
+
+      // room handlers
+      socket.on("client-ready", () => handleClientReady(socket));
+      socket.on("end-session", (data: EndSessionEvent) =>
+        handleEndSession(socket, data)
+      );
+
+      // disconnect handler
+      socket.on("disconnect", (reason: string) =>
+        handleDisconnect(socket, reason)
+      );
+    });
+  }
+
+  public getIO(): TypedServer {
+    return this.io;
+  }
+}
+
+export default SocketServer;
